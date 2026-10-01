@@ -135,7 +135,7 @@
     align-items: center;
     gap: 12px;
   }
-  .side { display: flex; flex-direction: column; align-items: center; gap: 9px; }
+  .side { display: flex; flex-direction: column; align-items: center; }
   .num {
     font-family: var(--mono);
     font-size: clamp(42px, 13vw, 72px);
@@ -145,12 +145,9 @@
     font-variant-numeric: tabular-nums;
     color: var(--team, var(--line));
   }
-  /* la bande de couleur est la seule etiquette : en match, rien d'autre ne dit qui est qui */
-  .bar { width: 70%; max-width: 116px; height: 5px; border-radius: 2px; background: var(--team, var(--line)); }
   .sep { font-family: var(--mono); font-size: 28px; color: var(--ink-3); }
 
   .stage.blank .num { color: var(--line); }
-  .stage.blank .bar { background: var(--line); }
 
   /* l'annonce du camp arrive avant les scores : la couleur est connue, le score est a trouver */
   .youare {
@@ -426,9 +423,9 @@
       <div class="stage blank" id="stage">
         <p class="youare" id="youAre">&nbsp;</p>
         <div class="duel" id="duel">
-          <div class="side"><span class="num">··</span><span class="bar"></span></div>
+          <div class="side"><span class="num">··</span></div>
           <span class="sep">—</span>
-          <div class="side"><span class="num">··</span><span class="bar"></span></div>
+          <div class="side"><span class="num">··</span></div>
         </div>
         <p class="prompt" id="prompt">Turtle possible ?</p>
       </div>
@@ -656,11 +653,12 @@
     { name: "ORANGE", c: "var(--them)" }
   ];
 
+  // la couleur du nombre est la seule etiquette : en match, rien d'autre ne dit qui est qui
   function SIDE(team, val) {
     return '<div class="side" style="--team:' + team.c + '">' +
-           '<span class="num">' + val + '</span><span class="bar"></span></div>';
+           '<span class="num">' + val + '</span></div>';
   }
-  var SIDE_BLANK = '<div class="side"><span class="num">··</span><span class="bar"></span></div>';
+  var SIDE_BLANK = '<div class="side"><span class="num">··</span></div>';
 
   function clearTimer() { if (timer) { clearTimeout(timer); timer = null; } }
 
