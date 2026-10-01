@@ -114,6 +114,8 @@
     border: 1px solid var(--line-soft);
     padding: 26px 20px;
   }
+  .frame.tappable { cursor: pointer; border-color: var(--us-dim); touch-action: manipulation; }
+  .frame.tappable::before, .frame.tappable::after { border-color: var(--us); }
   .frame::before, .frame::after {
     content: "";
     position: absolute;
@@ -638,6 +640,7 @@
 
   /* ================= boucle d'entraînement ================= */
   var stage = el("stage"), duel = el("duel"), prompt = el("prompt"),
+      frame = document.querySelector(".frame"),
       btnYes = el("btnYes"), btnNo = el("btnNo"),
       verdict = el("verdict"), vLabel = el("vLabel"), vRt = el("vRt"),
       vCalc = el("vCalc"), vAlt = el("vAlt"), vFlag = el("vFlag"),
@@ -657,6 +660,7 @@
     clearTimer();
     armed = false;
     phase = "blank";
+    frame.classList.remove("tappable");
     card = genCard();
     stage.classList.add("blank");
     duel.innerHTML = SIDE("us", "NOUS", "··") + SEP + SIDE("them", "EUX", "··");
@@ -735,8 +739,9 @@
     renderRail();
     if (statsVisible()) renderStats();
 
+    frame.classList.add("tappable");
     if (ok) timer = setTimeout(nextCard, 750);   // faux : on laisse lire le calcul
-    else prompt.textContent = "Espace pour continuer";
+    else prompt.textContent = "Toucher les scores ou Espace";
   }
 
   var INTRO = "Réponds avant que le score ne change quoi que ce soit.";
@@ -749,6 +754,7 @@
     phase = "ended";
     btnYes.disabled = btnNo.disabled = true;
     stopBtn.hidden = true;
+    frame.classList.remove("tappable");
     stage.hidden = true;
     recap.hidden = false;
     if (!verdict.classList.contains("idle")) verdict.classList.add("past");
@@ -790,6 +796,11 @@
     renderRail();
     nextCard();
   }
+
+  // sans clavier, le cadre est le seul moyen d'enchaîner après une erreur
+  frame.addEventListener("click", function () {
+    if (phase === "reveal") nextCard();
+  });
 
   stopBtn.addEventListener("click", endSession);
   el("restart").addEventListener("click", startSession);
