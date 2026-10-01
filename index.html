@@ -385,6 +385,12 @@
   .col li { display: flex; justify-content: space-between; gap: 8px; padding: 2.5px 0; color: var(--ink-3); }
   .col li b { font-weight: 600; }
   .col li.lim b { color: var(--them); }
+  .col li.head {
+    font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--ink-3); border-bottom: 1px solid var(--line-soft);
+    padding-bottom: 4px; margin-bottom: 4px;
+  }
+  .col li.head b { color: var(--ink-3); font-weight: 600; }
   code {
     font-family: var(--mono); font-size: 0.92em; background: var(--panel-2);
     border: 1px solid var(--line-soft); padding: 1px 5px; border-radius: 2px; color: var(--ink);
@@ -415,12 +421,12 @@
         <div class="duel" id="duel">
           <div class="side us">
             <span class="tag">NOUS</span>
-            <span class="num" id="numUs">(··)</span>
+            <span class="num">··</span>
           </div>
           <span class="sep">—</span>
           <div class="side them">
             <span class="tag">EUX</span>
-            <span class="num" id="numThem">··</span>
+            <span class="num">··</span>
           </div>
         </div>
         <p class="prompt" id="prompt">Turtle possible ?</p>
@@ -452,7 +458,7 @@
         <button id="m-progressif" aria-pressed="true">Progressif</button>
         <button id="m-razor" aria-pressed="false">Lame de rasoir</button>
       </div>
-      <button class="stop" id="stop">Terminer la séance</button>
+      <button class="stop" id="stop">Terminer la séance · Échap</button>
     </div>
     <p class="note" id="modeNote"></p>
     <p class="note">Les deux camps changent de côté au hasard à chaque carte. Fie-toi à l'étiquette et à la couleur, jamais à la position.</p>
@@ -631,14 +637,19 @@
   }
 
   /* ================= boucle d'entraînement ================= */
-  var stage = el("stage"), numUs = el("numUs"), numThem = el("numThem"),
-      duel = el("duel"), prompt = el("prompt"),
+  var stage = el("stage"), duel = el("duel"), prompt = el("prompt"),
       btnYes = el("btnYes"), btnNo = el("btnNo"),
       verdict = el("verdict"), vLabel = el("vLabel"), vRt = el("vRt"),
       vCalc = el("vCalc"), vAlt = el("vAlt"), vFlag = el("vFlag"),
       recap = el("recap"), recapStats = el("recapStats"), stopBtn = el("stop");
 
   var card = null, phase = "idle", t0 = 0, armed = false, timer = null, hidden = false;
+
+  var SEP = '<span class="sep">—</span>';
+  function SIDE(cls, tag, val) {
+    return '<div class="side ' + cls + '"><span class="tag">' + tag +
+           '</span><span class="num">' + val + '</span></div>';
+  }
 
   function clearTimer() { if (timer) { clearTimeout(timer); timer = null; } }
 
@@ -648,8 +659,7 @@
     phase = "blank";
     card = genCard();
     stage.classList.add("blank");
-    numUs.textContent = "(··)";
-    numThem.textContent = "··";
+    duel.innerHTML = SIDE("us", "NOUS", "··") + SEP + SIDE("them", "EUX", "··");
     prompt.textContent = "Prêt…";
     btnYes.disabled = btnNo.disabled = true;
     // délai variable : empêche de répondre au rythme plutôt qu'au score
@@ -663,11 +673,9 @@
     stage.classList.remove("blank");
     if (!verdict.classList.contains("idle")) verdict.classList.add("past"); // la carte précédente ne doit plus capter l'oeil
 
-    var us = '<div class="side us"><span class="tag">NOUS</span><span class="num">(' + card.n + ')</span></div>';
-    var them = '<div class="side them"><span class="tag">EUX</span><span class="num">' + card.e + '</span></div>';
-    var sep = '<span class="sep">—</span>';
+    var us = SIDE("us", "NOUS", card.n), them = SIDE("them", "EUX", card.e);
     var flip = Math.random() < 0.5;   // les camps changent de côté à chaque carte
-    duel.innerHTML = flip ? them + sep + us : us + sep + them;
+    duel.innerHTML = flip ? them + SEP + us : us + SEP + them;
 
     prompt.textContent = "Turtle possible ?";
     btnYes.disabled = btnNo.disabled = false;
@@ -1028,9 +1036,10 @@
   el("refGrid").innerHTML = [[51, 62], [63, 74], [75, 86], [87, 99]].map(function (r) {
     var rows = "";
     for (var n = r[0]; n <= r[1]; n++) {
-      rows += '<li class="lim"><span>(' + n + ')</span><b>≤ ' + (LIMIT(n) - 1) + '</b></li>';
+      rows += '<li class="lim"><span>' + n + '</span><b>≤ ' + (LIMIT(n) - 1) + '</b></li>';
     }
-    return '<div class="col"><h3>' + r[0] + ' – ' + r[1] + '</h3><ul>' + rows + '</ul></div>';
+    return '<div class="col"><h3>' + r[0] + ' – ' + r[1] + '</h3><ul>' +
+           '<li class="head"><span>nous</span><b>eux max</b></li>' + rows + '</ul></div>';
   }).join("");
 
   /* ================= onglets ================= */
