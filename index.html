@@ -23,6 +23,9 @@
     --us-dim: #1E5A6C;
     --them: #F5A524;
     --them-dim: #6B4A0F;
+    --hud-red: #FF4256;
+    --hud-blue: #35C8EC;
+    --hud-line: #1F4F60;
     --good: #5FE08A;
     --bad: #FF5470;
     --r: 3px;
@@ -127,9 +130,10 @@
   .frame::after  { bottom: -1px; right: -1px; border-left: 0; border-top: 0; }
 
   /* ---------- duel ---------- */
-  .stage { min-height: 168px; display: flex; flex-direction: column; justify-content: center; gap: 14px; }
+  .stage { min-height: 214px; display: flex; flex-direction: column; justify-content: center; gap: 14px; }
 
   .duel {
+    min-height: 152px;
     display: grid;
     grid-template-columns: 1fr auto 1fr;
     align-items: center;
@@ -149,6 +153,69 @@
 
   .stage.blank .num { color: var(--line); }
 
+  /* ---------- vue en jeu ---------- */
+  /* la convention du jeu : le rond rouge est toujours l'adverse et toujours a
+     gauche, le bleu toujours le notre. Rien a identifier, mais la lecture change
+     de forme — c'est ce basculement d'un affichage a l'autre qu'on entraine. */
+  .hud {
+    min-height: 152px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 16px;
+    border: 1px solid var(--hud-line);
+    border-radius: 5px;
+    background:
+      repeating-linear-gradient(180deg, rgba(76,201,232,.05) 0 1px, transparent 1px 4px),
+      linear-gradient(180deg, rgba(76,201,232,.09), rgba(76,201,232,.015));
+    box-shadow: inset 0 0 30px rgba(76,201,232,.09);
+  }
+  .hud::before, .hud::after {
+    content: "";
+    position: absolute;
+    width: 13px; height: 13px;
+    border: 2px solid var(--hud-blue);
+    opacity: .7;
+    pointer-events: none;
+  }
+  .hud::before { top: 4px; left: 4px; border-right: 0; border-bottom: 0; }
+  .hud::after  { bottom: 4px; right: 4px; border-left: 0; border-top: 0; }
+
+  .hud-scores { display: flex; align-items: center; justify-content: center; gap: clamp(16px, 7vw, 40px); }
+  .orb {
+    width: clamp(80px, 23vw, 102px);
+    aspect-ratio: 1 / 1;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    border: 2px solid;
+    font-family: var(--mono);
+    font-size: clamp(30px, 9vw, 38px);
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+  }
+  .orb.them {
+    border-color: var(--hud-red);
+    color: #FFE2E6;
+    background: radial-gradient(circle at 50% 34%, #8C1322, #3A0B12 74%);
+    box-shadow: 0 0 20px rgba(255,66,86,.30), inset 0 0 20px rgba(255,66,86,.22);
+  }
+  .orb.us {
+    border-color: var(--hud-blue);
+    color: #DFF6FD;
+    background: radial-gradient(circle at 50% 34%, #0E6683, #06303E 74%);
+    box-shadow: 0 0 20px rgba(53,200,236,.30), inset 0 0 20px rgba(53,200,236,.22);
+  }
+  .stage.blank .orb {
+    border-color: var(--line);
+    color: var(--line);
+    background: none;
+    box-shadow: none;
+  }
+
   /* l'annonce du camp arrive avant les scores : la couleur est connue, le score est a trouver */
   .youare {
     margin: 0; text-align: center; min-height: 20px;
@@ -163,7 +230,7 @@
 
   .stage[hidden], .recap[hidden] { display: none; }
   .recap {
-    min-height: 168px;
+    min-height: 214px;
     display: flex; flex-direction: column;
     align-items: center; justify-content: center; gap: 15px;
   }
@@ -282,7 +349,12 @@
   }
 
   /* ---------- settings ---------- */
-  .opts { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .opts { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; }
+  .opt-group { display: flex; align-items: center; gap: 7px; }
+  .opt-k {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--ink-3);
+  }
   .seg { display: flex; border: 1px solid var(--line-soft); border-radius: var(--r); overflow: hidden; }
   .seg button {
     appearance: none;
@@ -400,6 +472,10 @@
   }
   .note { font-size: 13.5px; color: var(--ink-3); max-width: 62ch; }
 
+  @media (max-width: 420px) {
+    .seg button { padding: 8px 8px; }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     * { transition: none !important; animation: none !important; }
   }
@@ -446,20 +522,32 @@
         <span class="label" id="vLabel">En attente</span>
         <span class="rt" id="vRt"></span>
       </div>
-      <div class="calc" id="vCalc">Ta couleur s'affiche d'abord, les deux scores ensuite. Trouve le tien, double-le, enlève cent.</div>
+      <div class="calc" id="vCalc">Repère ton score, double-le, enlève cent : s'il reste au-dessus du leur, la turtle passe.</div>
       <div class="calc-alt" id="vAlt"></div>
       <div class="flag" id="vFlag" hidden></div>
     </div>
 
     <div class="opts">
-      <div class="seg" role="group" aria-label="Mode d'entraînement">
-        <button id="m-progressif" aria-pressed="true">Progressif</button>
-        <button id="m-razor" aria-pressed="false">Lame de rasoir</button>
+      <div class="opt-group">
+        <span class="opt-k">Cartes</span>
+        <div class="seg" role="group" aria-label="Mode d'entraînement">
+          <button id="m-progressif" aria-pressed="true">Progressif</button>
+          <button id="m-razor" aria-pressed="false">Lame de rasoir</button>
+        </div>
+      </div>
+      <div class="opt-group">
+        <span class="opt-k">Affichage</span>
+        <div class="seg" role="group" aria-label="Affichage des scores">
+          <button id="v-both" aria-pressed="true">Les deux</button>
+          <button id="v-board" aria-pressed="false">Tableau</button>
+          <button id="v-game" aria-pressed="false">En jeu</button>
+        </div>
       </div>
       <button class="stop" id="stop">Terminer la séance · Échap</button>
     </div>
     <p class="note" id="modeNote"></p>
-    <p class="note">Ta couleur t'est annoncée avant chaque carte, puis les deux camps tombent au hasard d'un côté ou de l'autre. Rien n'indique ton score à part la couleur : ni la position, ni l'ordre.</p>
+    <p class="note" id="viewNote"></p>
+    <p class="note">En affichage tableau, ta couleur t'est annoncée avant chaque carte, puis les deux camps tombent au hasard d'un côté ou de l'autre : rien n'indique ton score à part la couleur, ni la position, ni l'ordre. En affichage en jeu, aucune annonce — c'est la convention du bracelet qui s'applique, le rond rouge à gauche est toujours l'adverse et le rond bleu à droite toujours le tien.</p>
   </div>
 
   <!-- ============ STATS ============ -->
@@ -499,7 +587,7 @@
       <h2>La règle, version match</h2>
       <div class="formula"><span style="color:var(--ink)">ton score</span> × 2 − 100 &gt; <span style="color:var(--ink-2)">le leur</span></div>
       <ol class="steps">
-        <li><span><b>Ta couleur d'abord.</b> Toujours. C'est ton score qu'on double, donc autant le trouver avant de calculer quoi que ce soit — c'est ça qui verrouille l'inversion. L'entraîneur t'annonce ta couleur, puis place les deux camps au hasard : seule la couleur dit lequel est le tien.</span></li>
+        <li><span><b>Ta couleur d'abord.</b> Toujours. C'est ton score qu'on double, donc autant le trouver avant de calculer quoi que ce soit — c'est ça qui verrouille l'inversion. L'entraîneur t'annonce ta couleur, puis place les deux camps au hasard : seule la couleur dit lequel est le tien. En affichage en jeu, pas de piège — le rond rouge de gauche est toujours l'adverse, le rond bleu de droite toujours le tien, comme sur ton bracelet.</span></li>
         <li><span><b>Enlève cinquante, puis double.</b> 87 → 37 → <b>74</b>. C'est le score plafond qu'ils ne doivent pas atteindre. Strictement identique à « double, enlève cent », mais tu ne dépasses jamais 50 avant de doubler — c'est ce qui rend les unités tenables.</span></li>
         <li><span><b>Compare.</b> Strictement en dessous → turtle. À égalité pile, c'est non.</span></li>
       </ol>
@@ -551,7 +639,7 @@
   var MIN_RT = 180, TARGET_RT = 2000, KEY = "eva-turtle-v1";
 
   /* ================= stockage ================= */
-  var data = { v: 1, attempts: [], mode: "progressif" };
+  var data = { v: 1, attempts: [], mode: "progressif", view: "both" };
   try {
     var raw = localStorage.getItem(KEY);
     if (raw) {
@@ -559,7 +647,8 @@
       if (p && Array.isArray(p.attempts)) data = {
         v: 1,
         attempts: p.attempts.slice(-3000),
-        mode: p.mode === "razor" ? p.mode : "progressif"
+        mode: p.mode === "razor" ? p.mode : "progressif",
+        view: p.view === "board" || p.view === "game" ? p.view : "both"
       };
     }
   } catch (err) { /* stockage indisponible : on tourne en mémoire */ }
@@ -660,6 +749,22 @@
   }
   var SIDE_BLANK = '<div class="side"><span class="num">··</span></div>';
 
+  // vue en jeu : rouge = eux a gauche, bleu = nous a droite, jamais l'inverse
+  var GAME_US   = { name: "BLEU",  c: "var(--hud-blue)" };
+  var GAME_THEM = { name: "ROUGE", c: "var(--hud-red)" };
+
+  function HUD(theirs, mine) {
+    return '<div class="hud-scores">' +
+           '<div class="orb them">' + theirs + '</div>' +
+           '<div class="orb us">' + mine + '</div>' +
+           '</div>';
+  }
+
+  // "both" : un tirage par carte, pour qu'aucun des deux affichages ne devienne une routine
+  function pickView() {
+    return data.view === "both" ? (Math.random() < 0.5 ? "game" : "board") : data.view;
+  }
+
   function clearTimer() { if (timer) { clearTimeout(timer); timer = null; } }
 
   function nextCard() {
@@ -668,15 +773,25 @@
     phase = "blank";
     frame.classList.remove("tappable");
     card = genCard();
+    card.view = pickView();
     // le camp est annonce avant les scores, comme en match ; les bandes de couleur,
     // elles, n'apparaissent qu'avec les chiffres, sinon le cote serait repere d'avance
-    var side = Math.random() < 0.5 ? 0 : 1;   // tirage franc : jamais d'alternance a deviner
-    card.mine = TEAMS[side];
-    card.theirs = TEAMS[1 - side];
+    if (card.view === "game") {
+      card.mine = GAME_US;
+      card.theirs = GAME_THEM;
+    } else {
+      var side = Math.random() < 0.5 ? 0 : 1; // tirage franc : jamais d'alternance a deviner
+      card.mine = TEAMS[side];
+      card.theirs = TEAMS[1 - side];
+    }
     stage.classList.add("blank");
     youAre.style.setProperty("--team", card.mine.c);
-    youAre.innerHTML = 'Vous êtes <b><span class="dot"></span>' + card.mine.name + '</b>';
-    duel.innerHTML = SIDE_BLANK + SEP + SIDE_BLANK;
+    // en jeu, le bleu est toujours le notre : il n'y a rien a annoncer
+    youAre.innerHTML = card.view === "game"
+      ? "&nbsp;"
+      : 'Vous êtes <b><span class="dot"></span>' + card.mine.name + '</b>';
+    duel.className = card.view === "game" ? "hud" : "duel";
+    duel.innerHTML = card.view === "game" ? HUD("··", "··") : SIDE_BLANK + SEP + SIDE_BLANK;
     prompt.textContent = "Prêt…";
     btnYes.disabled = btnNo.disabled = true;
     // délai variable : empêche de répondre au rythme plutôt qu'au score
@@ -690,9 +805,13 @@
     stage.classList.remove("blank");
     if (!verdict.classList.contains("idle")) verdict.classList.add("past"); // la carte précédente ne doit plus capter l'oeil
 
-    var mine = SIDE(card.mine, card.n), theirs = SIDE(card.theirs, card.e);
-    var flip = Math.random() < 0.5;   // les camps changent de côté à chaque carte
-    duel.innerHTML = flip ? theirs + SEP + mine : mine + SEP + theirs;
+    if (card.view === "game") {
+      duel.innerHTML = HUD(card.e, card.n);   // position imposee par le jeu, pas de tirage
+    } else {
+      var mine = SIDE(card.mine, card.n), theirs = SIDE(card.theirs, card.e);
+      var flip = Math.random() < 0.5;   // les camps changent de côté à chaque carte
+      duel.innerHTML = flip ? theirs + SEP + mine : mine + SEP + theirs;
+    }
 
     prompt.textContent = "Turtle possible ?";
     btnYes.disabled = btnNo.disabled = false;
@@ -758,7 +877,7 @@
     else prompt.textContent = "Toucher les scores ou Espace";
   }
 
-  var INTRO = "Ta couleur s'affiche d'abord, les deux scores ensuite. Trouve le tien, double-le, enlève cent.";
+  var INTRO = "Repère ton score, double-le, enlève cent : s'il reste au-dessus du leur, la turtle passe.";
 
   // Arrêt : le minuteur et le chrono de la carte affichée sont coupés avant
   // tout enregistrement, donc cette carte ne compte ni en justesse ni en temps.
@@ -872,6 +991,24 @@
       el("m-" + m).setAttribute("aria-pressed", String(data.mode === m));
     });
     el("modeNote").textContent = MODE_NOTES[data.mode];
+  }
+
+  var VIEW_NOTES = {
+    both: "Les deux affichages tombent au hasard, une carte sur deux environ. C'est le réglage à garder : en match tu lis les ronds, mais le tableau est le seul qui t'oblige à identifier ton camp.",
+    board: "Tableau seul : les deux camps changent de côté à chaque carte, et seule la couleur annoncée dit lequel est le tien.",
+    game: "En jeu seul : rouge à gauche pour eux, bleu à droite pour toi, comme sur ton bracelet. Rien à identifier, rien à annoncer — tout est dans le calcul."
+  };
+  ["both", "board", "game"].forEach(function (v) {
+    el("v-" + v).addEventListener("click", function () {
+      data.view = v; save(); syncView();
+      if (phase === "ended") startSession(); else nextCard();
+    });
+  });
+  function syncView() {
+    ["both", "board", "game"].forEach(function (v) {
+      el("v-" + v).setAttribute("aria-pressed", String(data.view === v));
+    });
+    el("viewNote").textContent = VIEW_NOTES[data.view];
   }
   /* ================= stats ================= */
   function statsVisible() { return !el("p-stats").hidden; }
@@ -1084,6 +1221,7 @@
 
   /* ================= démarrage ================= */
   syncMode();
+  syncView();
   renderRail();
   nextCard();
 })();
