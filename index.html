@@ -1,0 +1,1067 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Réflexe Turtle</title>
+<meta name="description" content="Entraîneur de réflexe pour la décision de turtle sur EVA : combinaisons de scores, oui/non, temps de réponse et justesse mesurés.">
+<meta name="color-scheme" content="dark">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%90%A2%3C/text%3E%3C/svg%3E">
+</head>
+<body>
+<style>
+  :root {
+    --ground: #0A1014;
+    --panel: #111C23;
+    --panel-2: #17272F;
+    --line: #21363F;
+    --line-soft: #1A2A32;
+    --ink: #E4EFF3;
+    --ink-2: #94AEB9;
+    --ink-3: #5C7682;
+    --us: #4CC9E8;
+    --us-dim: #1E5A6C;
+    --them: #F5A524;
+    --them-dim: #6B4A0F;
+    --good: #5FE08A;
+    --bad: #FF5470;
+    --r: 3px;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", "Roboto Mono", "DejaVu Sans Mono", Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .wrap {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 20px 16px 64px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  /* ---------- rail ---------- */
+  .rail {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    border-bottom: 1px solid var(--line-soft);
+    padding-bottom: 12px;
+  }
+  .brand {
+    font-family: var(--mono);
+    font-size: 13px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+    margin: 0;
+    font-weight: 600;
+  }
+  .brand b { color: var(--us); font-weight: 600; }
+  .rail-meta {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    color: var(--ink-3);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ---------- tabs ---------- */
+  .tabs { display: flex; gap: 2px; }
+  .tab {
+    flex: 1;
+    appearance: none;
+    background: transparent;
+    border: 1px solid var(--line-soft);
+    border-bottom-width: 2px;
+    color: var(--ink-3);
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 9px 4px;
+    cursor: pointer;
+    transition: color .12s, border-color .12s, background .12s;
+  }
+  .tab:hover { color: var(--ink-2); }
+  .tab[aria-selected="true"] {
+    color: var(--ink);
+    border-bottom-color: var(--us);
+    background: var(--panel);
+  }
+  .tab:focus-visible { outline: 2px solid var(--us); outline-offset: 2px; }
+
+  .panel[hidden] { display: none; }
+  .panel { display: flex; flex-direction: column; gap: 18px; }
+
+  /* ---------- bracket frame ---------- */
+  .frame {
+    position: relative;
+    background: var(--panel);
+    border: 1px solid var(--line-soft);
+    padding: 26px 20px;
+  }
+  .frame::before, .frame::after {
+    content: "";
+    position: absolute;
+    width: 14px; height: 14px;
+    border: 2px solid var(--us-dim);
+    pointer-events: none;
+  }
+  .frame::before { top: -1px; left: -1px; border-right: 0; border-bottom: 0; }
+  .frame::after  { bottom: -1px; right: -1px; border-left: 0; border-top: 0; }
+
+  /* ---------- duel ---------- */
+  .stage { min-height: 168px; display: flex; flex-direction: column; justify-content: center; gap: 14px; }
+
+  .duel {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 12px;
+  }
+  .side { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .tag {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    font-weight: 700;
+  }
+  .side.us .tag { color: var(--us); }
+  .side.them .tag { color: var(--them); }
+  .num {
+    font-family: var(--mono);
+    font-size: clamp(42px, 13vw, 72px);
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+  }
+  .side.us .num { color: var(--us); }
+  .side.them .num { color: var(--them); }
+  .sep { font-family: var(--mono); font-size: 28px; color: var(--ink-3); }
+
+  .stage.blank .num { color: var(--line); }
+  .stage.blank .tag { color: var(--ink-3); }
+
+  .stage[hidden], .recap[hidden] { display: none; }
+  .recap {
+    min-height: 168px;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 15px;
+  }
+  .recap-title {
+    font-family: var(--mono); font-size: 12px; letter-spacing: 0.18em;
+    text-transform: uppercase; color: var(--us); margin: 0; font-weight: 700;
+  }
+  .recap-stats {
+    display: grid; grid-template-columns: auto auto; gap: 4px 22px;
+    font-family: var(--mono); font-size: 13.5px; font-variant-numeric: tabular-nums;
+  }
+  .recap-stats .k { color: var(--ink-3); }
+  .recap-stats .v { color: var(--ink); text-align: right; font-weight: 700; }
+  .recap-none { color: var(--ink-3); font-size: 13.5px; text-align: center; max-width: 36ch; margin: 0; }
+  .btn-restart { font-size: 14px; padding: 12px 24px; letter-spacing: 0.12em; }
+
+  .stop {
+    appearance: none; margin-left: auto; background: transparent;
+    border: 1px solid var(--line-soft); border-radius: var(--r);
+    color: var(--ink-3); font-family: var(--mono); font-size: 11px;
+    letter-spacing: 0.08em; text-transform: uppercase; padding: 8px 11px; cursor: pointer;
+  }
+  .stop:hover { color: var(--ink); border-color: var(--ink-3); }
+  .stop:focus-visible { outline: 2px solid var(--us); outline-offset: 2px; }
+  .stop[hidden] { display: none; }
+
+  .prompt {
+    text-align: center;
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    min-height: 18px;
+  }
+
+  /* ---------- answers ---------- */
+  .answers { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .btn {
+    appearance: none;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: var(--r);
+    color: var(--ink);
+    font-family: var(--mono);
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    padding: 20px 8px;
+    cursor: pointer;
+    touch-action: manipulation;
+    transition: background .1s, border-color .1s, transform .06s;
+  }
+  .btn:hover:not(:disabled) { background: #1D3039; border-color: var(--ink-3); }
+  .btn:active:not(:disabled) { transform: translateY(1px); }
+  .btn:disabled { opacity: .35; cursor: default; }
+  .btn:focus-visible { outline: 2px solid var(--us); outline-offset: 2px; }
+  .btn .hint {
+    display: block;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    color: var(--ink-3);
+    margin-top: 5px;
+  }
+
+  /* ---------- verdict ---------- */
+  .verdict {
+    border: 1px solid var(--line-soft);
+    border-left-width: 3px;
+    background: var(--panel);
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 118px;
+  }
+  .verdict.ok { border-left-color: var(--good); }
+  .verdict.ko { border-left-color: var(--bad); }
+  .verdict.idle { border-left-color: var(--line); }
+  .verdict.past { opacity: .42; }
+  .verdict-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    font-family: var(--mono);
+    font-size: 13px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+  .verdict.ok .verdict-head .label { color: var(--good); }
+  .verdict.ko .verdict-head .label { color: var(--bad); }
+  .verdict.idle .verdict-head .label { color: var(--ink-3); }
+  .rt { color: var(--ink-2); font-variant-numeric: tabular-nums; font-weight: 500; }
+  .rt.slow { color: var(--them); }
+  .calc {
+    font-family: var(--mono);
+    font-size: 14px;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+    overflow-x: auto;
+    white-space: nowrap;
+    padding-bottom: 2px;
+  }
+  .verdict.idle .calc { white-space: normal; }
+  .calc .us-t { color: var(--us); }
+  .calc .them-t { color: var(--them); }
+  .calc-alt { font-family: var(--mono); font-size: 12px; color: var(--ink-3); white-space: nowrap; overflow-x: auto; }
+  .flag {
+    font-size: 12.5px;
+    color: var(--them);
+    border-top: 1px dashed var(--them-dim);
+    padding-top: 7px;
+    line-height: 1.45;
+  }
+
+  /* ---------- settings ---------- */
+  .opts { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .seg { display: flex; border: 1px solid var(--line-soft); border-radius: var(--r); overflow: hidden; }
+  .seg button {
+    appearance: none;
+    background: transparent;
+    border: 0;
+    border-right: 1px solid var(--line-soft);
+    color: var(--ink-3);
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 8px 11px;
+    cursor: pointer;
+  }
+  .seg button:last-child { border-right: 0; }
+  .seg button[aria-pressed="true"] { background: var(--panel-2); color: var(--ink); }
+  .seg button:focus-visible { outline: 2px solid var(--us); outline-offset: -2px; }
+  .toggle {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--ink-3); cursor: pointer;
+    border: 1px solid var(--line-soft); border-radius: var(--r); padding: 8px 11px;
+  }
+  .toggle input { accent-color: var(--us); margin: 0; }
+  .toggle:has(input:checked) { color: var(--ink); background: var(--panel-2); }
+
+  /* ---------- stats ---------- */
+  .tiles { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .tile { background: var(--panel); border: 1px solid var(--line-soft); padding: 14px 16px; display: flex; flex-direction: column; gap: 3px; }
+  .tile .k { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-3); }
+  .tile .v { font-family: var(--mono); font-size: 30px; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .tile .s { font-size: 12px; color: var(--ink-3); }
+  .v.us-t { color: var(--us); }
+
+  h2 {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+    margin: 0 0 10px;
+    font-weight: 600;
+  }
+  section > p { margin: 0 0 10px; color: var(--ink-2); font-size: 14px; max-width: 62ch; }
+
+  .chart-box { background: var(--panel); border: 1px solid var(--line-soft); padding: 16px 14px 10px; position: relative; }
+  svg.chart { display: block; width: 100%; height: auto; }
+  .chart-empty { color: var(--ink-3); font-size: 13.5px; text-align: center; padding: 28px 10px; }
+  .tip {
+    position: absolute; pointer-events: none; opacity: 0;
+    background: var(--panel-2); border: 1px solid var(--line);
+    padding: 6px 9px; font-family: var(--mono); font-size: 11.5px;
+    color: var(--ink); white-space: nowrap; transform: translate(-50%, -115%);
+    font-variant-numeric: tabular-nums; transition: opacity .1s;
+  }
+
+  .tbl-scroll { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: right; padding: 9px 10px; border-bottom: 1px solid var(--line-soft); font-variant-numeric: tabular-nums; }
+  th:first-child, td:first-child { text-align: left; }
+  th {
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--ink-3); font-weight: 600;
+    border-bottom-color: var(--line);
+  }
+  td.dim { color: var(--ink-3); }
+  .chip {
+    display: inline-block; font-family: var(--mono); font-size: 10px;
+    letter-spacing: 0.1em; text-transform: uppercase; padding: 2px 7px;
+    border: 1px solid currentColor; border-radius: 999px;
+  }
+  .chip.ok { color: var(--good); }
+  .chip.warn { color: var(--them); }
+  .chip.bad { color: var(--bad); }
+  .chip.none { color: var(--ink-3); }
+
+  .danger {
+    appearance: none; background: transparent; border: 1px solid var(--line);
+    color: var(--ink-3); font-family: var(--mono); font-size: 11px;
+    letter-spacing: 0.1em; text-transform: uppercase; padding: 9px 13px;
+    cursor: pointer; border-radius: var(--r); align-self: flex-start;
+  }
+  .danger:hover { color: var(--bad); border-color: var(--bad); }
+  .danger:focus-visible { outline: 2px solid var(--bad); outline-offset: 2px; }
+
+  /* ---------- rule sheet ---------- */
+  .rule-card { background: var(--panel); border: 1px solid var(--line-soft); padding: 18px 18px; }
+  .formula {
+    font-family: var(--mono); font-size: clamp(16px, 4.6vw, 22px); font-weight: 700;
+    color: var(--ink); text-align: center; padding: 14px 6px; letter-spacing: 0.01em;
+    overflow-x: auto; white-space: nowrap;
+  }
+  .steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; counter-reset: s; }
+  .steps li {
+    display: grid; grid-template-columns: 26px 1fr; gap: 12px; align-items: baseline;
+    font-size: 14.5px; color: var(--ink-2);
+  }
+  .steps li::before {
+    counter-increment: s; content: counter(s);
+    font-family: var(--mono); font-size: 11px; color: var(--us);
+    border: 1px solid var(--us-dim); border-radius: 999px;
+    width: 22px; height: 22px; display: grid; place-items: center;
+  }
+  .steps b { color: var(--ink); font-weight: 600; }
+  .grid-ref { display: grid; grid-template-columns: repeat(auto-fit, minmax(128px, 1fr)); gap: 10px; }
+  .col { background: var(--panel); border: 1px solid var(--line-soft); padding: 12px 13px; }
+  .col h3 {
+    margin: 0 0 8px; font-family: var(--mono); font-size: 13px; letter-spacing: 0.08em;
+    color: var(--us); font-weight: 700;
+  }
+  .col ul { list-style: none; margin: 0; padding: 0; font-family: var(--mono); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+  .col li { display: flex; justify-content: space-between; gap: 8px; padding: 2.5px 0; color: var(--ink-3); }
+  .col li b { font-weight: 600; }
+  .col li.lim b { color: var(--them); }
+  code {
+    font-family: var(--mono); font-size: 0.92em; background: var(--panel-2);
+    border: 1px solid var(--line-soft); padding: 1px 5px; border-radius: 2px; color: var(--ink);
+  }
+  .note { font-size: 13.5px; color: var(--ink-3); max-width: 62ch; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+
+<div class="wrap">
+  <div class="rail">
+    <p class="brand">EVA · <b>Réflexe Turtle</b></p>
+    <span class="rail-meta" id="railMeta">—</span>
+  </div>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" id="tab-train" aria-selected="true" aria-controls="p-train">Entraînement</button>
+    <button class="tab" role="tab" id="tab-stats" aria-selected="false" aria-controls="p-stats">Stats</button>
+    <button class="tab" role="tab" id="tab-rule" aria-selected="false" aria-controls="p-rule">Règle</button>
+  </div>
+
+  <!-- ============ ENTRAINEMENT ============ -->
+  <div class="panel" id="p-train" role="tabpanel" aria-labelledby="tab-train">
+    <div class="frame">
+      <div class="stage blank" id="stage">
+        <div class="duel" id="duel">
+          <div class="side us">
+            <span class="tag">NOUS</span>
+            <span class="num" id="numUs">(··)</span>
+          </div>
+          <span class="sep">—</span>
+          <div class="side them">
+            <span class="tag">EUX</span>
+            <span class="num" id="numThem">··</span>
+          </div>
+        </div>
+        <p class="prompt" id="prompt">Turtle possible ?</p>
+      </div>
+      <div class="recap" id="recap" hidden>
+        <p class="recap-title">Séance terminée</p>
+        <div class="recap-stats" id="recapStats"></div>
+        <button class="btn btn-restart" id="restart">Nouvelle séance</button>
+      </div>
+    </div>
+
+    <div class="answers">
+      <button class="btn" id="btnYes" disabled>OUI<span class="hint">← ou O</span></button>
+      <button class="btn" id="btnNo" disabled>NON<span class="hint">→ ou N</span></button>
+    </div>
+
+    <div class="verdict idle" id="verdict">
+      <div class="verdict-head">
+        <span class="label" id="vLabel">En attente</span>
+        <span class="rt" id="vRt"></span>
+      </div>
+      <div class="calc" id="vCalc">Réponds avant que le score ne change quoi que ce soit.</div>
+      <div class="calc-alt" id="vAlt"></div>
+      <div class="flag" id="vFlag" hidden></div>
+    </div>
+
+    <div class="opts">
+      <div class="seg" role="group" aria-label="Mode d'entraînement">
+        <button id="m-progressif" aria-pressed="true">Progressif</button>
+        <button id="m-razor" aria-pressed="false">Lame de rasoir</button>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="confusion">
+        Côtés inversés
+      </label>
+      <button class="stop" id="stop">Terminer la séance</button>
+    </div>
+    <p class="note" id="modeNote"></p>
+  </div>
+
+  <!-- ============ STATS ============ -->
+  <div class="panel" id="p-stats" role="tabpanel" aria-labelledby="tab-stats" hidden>
+    <div class="tiles" id="tiles"></div>
+
+    <section>
+      <h2>Temps médian par séance</h2>
+      <p>Sur les bonnes réponses uniquement — une erreur expédiée en 300 ms ne dit rien de ta vitesse. La ligne repère est à 2,0 s, l'objectif en match.</p>
+      <div class="chart-box" id="chartBox"></div>
+    </section>
+
+    <section>
+      <h2>Par marge</h2>
+      <p>La marge, c'est l'écart entre <code>2×nous−100</code> et leur score. Plus elle est fine, plus la décision est difficile : c'est là que se joue ta vraie fiabilité.</p>
+      <div class="tbl-scroll">
+        <table id="bandTable">
+          <thead>
+            <tr><th>Marge</th><th>Cartes</th><th>Justesse</th><th>Médiane</th><th>État</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section>
+      <h2>Inversions</h2>
+      <p id="invText"></p>
+    </section>
+
+    <button class="danger" id="reset">Effacer l'historique</button>
+  </div>
+
+  <!-- ============ REGLE ============ -->
+  <div class="panel" id="p-rule" role="tabpanel" aria-labelledby="tab-rule" hidden>
+    <div class="rule-card">
+      <h2>La règle, version match</h2>
+      <div class="formula"><span style="color:var(--us)">nous</span> × 2 − 100 &gt; <span style="color:var(--them)">eux</span></div>
+      <ol class="steps">
+        <li><span><b>Nous d'abord.</b> Toujours. C'est notre score qu'on double, donc autant le lire en premier — c'est ça qui verrouille l'inversion.</span></li>
+        <li><span><b>Enlève cinquante, puis double.</b> 87 → 37 → <b style="color:var(--them)">74</b>. C'est le score plafond qu'ils ne doivent pas atteindre. Strictement identique à « double, enlève cent », mais tu ne dépasses jamais 50 avant de doubler — c'est ce qui rend les unités tenables.</span></li>
+        <li><span><b>Compare.</b> Strictement en dessous → turtle. À égalité pile, c'est non.</span></li>
+      </ol>
+    </div>
+
+    <div class="rule-card">
+      <h2>Pourquoi ça marche</h2>
+      <p class="note">Sur une carte à 3 points, on en garde 1 et ils en tiennent 2 : ils marquent deux fois plus vite. La turtle tient si leur reste est plus grand que deux fois le nôtre.</p>
+      <div class="calc" style="margin-top:10px; color:var(--ink-2)">100 − eux &gt; 2 × (100 − nous)</div>
+      <div class="calc" style="color:var(--ink-2)">100 − eux &gt; 200 − 2 × nous</div>
+      <div class="calc">2 × nous − 100 &gt; eux</div>
+      <p class="note" style="margin-top:10px">C'est exactement l'ancienne formule <code>reste nous × 2 + 1 ≤ reste eux</code>, sans les compléments à 100 à calculer.</p>
+    </div>
+
+    <div class="rule-card">
+      <h2>Bornes</h2>
+      <p class="note">En dessous de <b style="color:var(--ink)">51</b>, la turtle est impossible même s'ils sont à 0 : reconnais-le d'un coup d'œil au lieu de calculer. À 51, il leur faut 0 ou 1. À 99, il suffit qu'ils soient à 97 ou moins.</p>
+    </div>
+
+    <section>
+      <h2>Seuils à l'unité</h2>
+      <p style="color:var(--ink-2);font-size:14px;margin:0 0 10px;max-width:62ch">Pour chacun de nos scores, le score adverse maximum qui laisse encore la turtle possible. Le plafond est toujours pair, et il monte de 2 à chaque point qu'on marque.</p>
+      <div class="grid-ref" id="refGrid"></div>
+    </section>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ================= règle ================= */
+  var LIMIT   = function (n) { return 2 * n - 100; };          // plafond adverse
+  var TURTLE  = function (n, e) { return LIMIT(n) > e; };      // strict
+  var MARGIN  = function (n, e) { return LIMIT(n) - e; };      // > 0 ⇒ oui
+
+  var BANDS = [
+    { lo: 0,  hi: 2,  label: "0 – 2",   name: "Lame de rasoir" },
+    { lo: 3,  hi: 7,  label: "3 – 7",   name: "Serré" },
+    { lo: 8,  hi: 20, label: "8 – 20",  name: "Confortable" },
+    { lo: 21, hi: 45, label: "21 et +", name: "Évident" }
+  ];
+  function bandOf(m) {
+    var a = Math.abs(m);
+    for (var i = 0; i < BANDS.length; i++) if (a <= BANDS[i].hi) return i;
+    return BANDS.length - 1;
+  }
+
+  var MIN_RT = 180, TARGET_RT = 2000, KEY = "eva-turtle-v1";
+
+  /* ================= stockage ================= */
+  var data = { v: 1, attempts: [], mode: "progressif", confusion: false };
+  try {
+    var raw = localStorage.getItem(KEY);
+    if (raw) {
+      var p = JSON.parse(raw);
+      if (p && Array.isArray(p.attempts)) data = {
+        v: 1,
+        attempts: p.attempts.slice(-3000),
+        mode: p.mode === "razor" ? p.mode : "progressif",
+        confusion: !!p.confusion
+      };
+    }
+  } catch (err) { /* stockage indisponible : on tourne en mémoire */ }
+
+  var save = (function () {
+    var pending = null;
+    return function () {
+      if (pending) return;
+      pending = setTimeout(function () {
+        pending = null;
+        try { localStorage.setItem(KEY, JSON.stringify(data)); } catch (err) {}
+      }, 250);
+    };
+  })();
+
+  var SESSION = Date.now();
+
+  /* ================= utilitaires ================= */
+  function ri(a, b) { return a + Math.floor(Math.random() * (b - a + 1)); }
+  function median(xs) {
+    if (!xs.length) return null;
+    var s = xs.slice().sort(function (a, b) { return a - b; });
+    var h = s.length >> 1;
+    return s.length % 2 ? s[h] : (s[h - 1] + s[h]) / 2;
+  }
+  function fmtRt(ms) { return (ms / 1000).toFixed(2).replace(".", ",") + " s"; }
+  function pct(x) { return Math.round(x * 100) + " %"; }
+  function el(id) { return document.getElementById(id); }
+
+  /* ================= générateur ================= */
+  function bandWeights() {
+    var base = [0.32, 0.30, 0.24, 0.14];
+    var recent = data.attempts.slice(-150);
+    return base.map(function (w, i) {
+      var s = recent.filter(function (a) { return bandOf(a.m) === i; });
+      if (s.length < 6) return w;
+      var ok = s.filter(function (a) { return a.ok; });
+      var acc = ok.length / s.length;
+      var med = median(ok.map(function (a) { return a.rt; })) || TARGET_RT;
+      var slow = 1 + Math.min(1.2, Math.max(0, (med - TARGET_RT) / TARGET_RT));
+      return w * (1 + 2.2 * (1 - acc)) * slow;
+    });
+  }
+  function pickWeighted(ws) {
+    var t = ws.reduce(function (a, b) { return a + b; }, 0), r = Math.random() * t;
+    for (var i = 0; i < ws.length; i++) { r -= ws[i]; if (r <= 0) return i; }
+    return ws.length - 1;
+  }
+
+  var lastCard = null;
+
+  function genCard() {
+    var n, e, i;
+
+    // 8 % de scores sous la barre des 51 : à reconnaître sans calculer
+    if (data.mode !== "razor" && Math.random() < 0.08) {
+      return { n: ri(25, 50), e: ri(0, 99) };
+    }
+
+    var band = data.mode === "razor" ? 0 : pickWeighted(bandWeights());
+    var b = BANDS[band];
+
+    for (i = 0; i < 300; i++) {
+      n = ri(51, 99);
+      var yes = Math.random() < 0.5;                       // 50/50 strict : pas de biais de réponse
+      var a = yes ? ri(Math.max(1, b.lo), b.hi) : ri(b.lo, b.hi);
+      e = LIMIT(n) - (yes ? a : -a);
+      if (e < 0 || e > 99) continue;
+      if (lastCard && lastCard.n === n && lastCard.e === e) continue;
+      return { n: n, e: e };
+    }
+    return { n: ri(51, 99), e: ri(0, 99) };
+  }
+
+  /* ================= boucle d'entraînement ================= */
+  var stage = el("stage"), numUs = el("numUs"), numThem = el("numThem"),
+      duel = el("duel"), prompt = el("prompt"),
+      btnYes = el("btnYes"), btnNo = el("btnNo"),
+      verdict = el("verdict"), vLabel = el("vLabel"), vRt = el("vRt"),
+      vCalc = el("vCalc"), vAlt = el("vAlt"), vFlag = el("vFlag"),
+      recap = el("recap"), recapStats = el("recapStats"), stopBtn = el("stop");
+
+  var card = null, phase = "idle", t0 = 0, armed = false, timer = null, hidden = false;
+
+  function clearTimer() { if (timer) { clearTimeout(timer); timer = null; } }
+
+  function nextCard() {
+    clearTimer();
+    armed = false;
+    phase = "blank";
+    card = genCard();
+    stage.classList.add("blank");
+    numUs.textContent = "(··)";
+    numThem.textContent = "··";
+    prompt.textContent = "Prêt…";
+    btnYes.disabled = btnNo.disabled = true;
+    // délai variable : empêche de répondre au rythme plutôt qu'au score
+    timer = setTimeout(showCard, 420 + Math.random() * 480);
+  }
+
+  function showCard() {
+    timer = null;
+    phase = "live";
+    hidden = false;
+    stage.classList.remove("blank");
+    if (!verdict.classList.contains("idle")) verdict.classList.add("past"); // la carte précédente ne doit plus capter l'oeil
+
+    var us = '<div class="side us"><span class="tag">NOUS</span><span class="num">(' + card.n + ')</span></div>';
+    var them = '<div class="side them"><span class="tag">EUX</span><span class="num">' + card.e + '</span></div>';
+    var sep = '<span class="sep">—</span>';
+    var flip = data.confusion && Math.random() < 0.5;
+    duel.innerHTML = flip ? them + sep + us : us + sep + them;
+
+    prompt.textContent = "Turtle possible ?";
+    btnYes.disabled = btnNo.disabled = false;
+
+    // chrono démarré après le rendu effectif, pas après l'appel JS
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        if (phase !== "live") return;
+        t0 = performance.now();
+        armed = true;
+      });
+    });
+  }
+
+  function answer(said) {
+    if (phase !== "live" || !armed) return;
+    var rt = performance.now() - t0;
+    if (rt < MIN_RT) return;                 // clic parti tout seul
+    armed = false;
+    phase = "reveal";
+    btnYes.disabled = btnNo.disabled = true;
+
+    var n = card.n, e = card.e;
+    var truth = TURTLE(n, e), m = MARGIN(n, e), ok = said === truth;
+
+    // diagnostic d'inversion : la réponse aurait-elle été juste avec les scores échangés ?
+    var inv = !ok && TURTLE(e, n) === said;
+
+    data.attempts.push({ s: SESSION, t: Date.now(), n: n, e: e, a: said ? 1 : 0, ok: ok, rt: Math.round(rt), m: m });
+    if (data.attempts.length > 3000) data.attempts = data.attempts.slice(-3000);
+    save();
+    lastCard = card;
+
+    verdict.className = "verdict " + (ok ? "ok" : "ko");
+    vLabel.textContent = ok ? (truth ? "Juste — turtle" : "Juste — pas de turtle") : "Faux — c'était " + (truth ? "oui" : "non");
+    vRt.textContent = fmtRt(rt);
+    vRt.className = "rt" + (rt > TARGET_RT ? " slow" : "");
+
+    vCalc.innerHTML =
+      '2 × <span class="us-t">' + n + '</span> − 100 = <b>' + LIMIT(n) + '</b> ' +
+      (truth ? "&gt;" : (m === 0 ? "=" : "&lt;")) + ' <span class="them-t">' + e + '</span>' +
+      '<span style="color:var(--ink-3)">   ·   marge ' + (m > 0 ? "+" : "") + m + '</span>';
+    vAlt.textContent = "(" + n + " − 50) × 2 = " + LIMIT(n) +
+                       "   ·   restes " + (100 - n) + " / " + (100 - e);
+
+    if (inv) {
+      vFlag.hidden = false;
+      vFlag.innerHTML = "Inversion probable : ta réponse aurait été juste avec les scores échangés. Reprends par <b>nous</b>.";
+    } else if (!ok && n <= 50) {
+      vFlag.hidden = false;
+      vFlag.innerHTML = "Sous 51 pour nous, la turtle est <b>toujours</b> impossible — aucun calcul à faire.";
+    } else {
+      vFlag.hidden = true;
+      vFlag.textContent = "";
+    }
+
+    renderRail();
+    if (statsVisible()) renderStats();
+
+    if (ok) timer = setTimeout(nextCard, 750);   // faux : on laisse lire le calcul
+    else prompt.textContent = "Espace pour continuer";
+  }
+
+  var INTRO = "Réponds avant que le score ne change quoi que ce soit.";
+
+  // Arrêt : le minuteur et le chrono de la carte affichée sont coupés avant
+  // tout enregistrement, donc cette carte ne compte ni en justesse ni en temps.
+  function endSession() {
+    clearTimer();
+    armed = false;
+    phase = "ended";
+    btnYes.disabled = btnNo.disabled = true;
+    stopBtn.hidden = true;
+    stage.hidden = true;
+    recap.hidden = false;
+    if (!verdict.classList.contains("idle")) verdict.classList.add("past");
+
+    var s = sessionAttempts();
+    if (!s.length) {
+      recapStats.innerHTML = '<p class="recap-none">Aucune carte comptée : la carte affichée a été abandonnée sans être enregistrée.</p>';
+      return;
+    }
+    var ok = s.filter(function (a) { return a.ok; });
+    var med = median(ok.map(function (a) { return a.rt; }));
+    var best = 0, cur = 0;
+    s.forEach(function (a) { cur = a.ok ? cur + 1 : 0; if (cur > best) best = cur; });
+    var inv = s.filter(function (a) { return !a.ok && TURTLE(a.e, a.n) === !!a.a; }).length;
+
+    var row = function (k, v) {
+      return '<span class="k">' + k + '</span><span class="v">' + v + '</span>';
+    };
+    recapStats.innerHTML =
+      row("Cartes", s.length) +
+      row("Justesse", pct(ok.length / s.length)) +
+      row("Temps médian", med ? fmtRt(med) : "—") +
+      row("Meilleure série", best) +
+      row("Inversions", inv);
+  }
+
+  function startSession() {
+    SESSION = Math.max(Date.now(), SESSION + 1);   // une séance distincte dans les stats
+    recap.hidden = true;
+    stage.hidden = false;
+    stopBtn.hidden = false;
+    verdict.className = "verdict idle";
+    vLabel.textContent = "En attente";
+    vRt.textContent = "";
+    vRt.className = "rt";
+    vCalc.textContent = INTRO;
+    vAlt.textContent = "";
+    vFlag.hidden = true;
+    renderRail();
+    nextCard();
+  }
+
+  stopBtn.addEventListener("click", endSession);
+  el("restart").addEventListener("click", startSession);
+
+  function onKey(ev) {
+    if (ev.metaKey || ev.ctrlKey || ev.altKey) return;
+    var k = ev.key.toLowerCase();
+    if (phase === "ended") {
+      if (k === " " || k === "enter") { ev.preventDefault(); startSession(); }
+      return;
+    }
+    if (k === "escape") { ev.preventDefault(); endSession(); return; }
+    if (phase === "reveal" && (k === " " || k === "enter")) { ev.preventDefault(); nextCard(); return; }
+    if (phase !== "live") return;
+    if (k === "arrowleft" || k === "o") { ev.preventDefault(); answer(true); }
+    else if (k === "arrowright" || k === "n") { ev.preventDefault(); answer(false); }
+  }
+
+  btnYes.addEventListener("click", function () { answer(true); });
+  btnNo.addEventListener("click", function () { answer(false); });
+  document.addEventListener("keydown", onKey);
+
+  // un onglet masqué en pleine carte rendrait le chrono faux : on rejoue la carte
+  document.addEventListener("visibilitychange", function () {
+    if (document.hidden && (phase === "live" || phase === "blank")) { hidden = true; armed = false; }
+    else if (!document.hidden && hidden && phase !== "ended") { hidden = false; nextCard(); }
+  });
+
+  /* ================= rail + modes ================= */
+  function sessionAttempts() {
+    return data.attempts.filter(function (a) { return a.s === SESSION; });
+  }
+  function renderRail() {
+    var s = sessionAttempts();
+    if (!s.length) { el("railMeta").textContent = "séance vierge"; return; }
+    var ok = s.filter(function (a) { return a.ok; });
+    var med = median(ok.map(function (a) { return a.rt; }));
+    el("railMeta").textContent = s.length + (s.length > 1 ? " cartes · " : " carte · ") +
+      pct(ok.length / s.length) + (med ? " · " + fmtRt(med) : "");
+  }
+
+  var MODE_NOTES = {
+    progressif: "Scores à l'unité près, et les marges où tu es lent ou faux reviennent plus souvent. C'est le mode à utiliser au quotidien.",
+    razor: "Uniquement des marges de 0 à 2, dont les égalités pile qui sont des non. Le mode qui pique."
+  };
+  ["progressif", "razor"].forEach(function (m) {
+    el("m-" + m).addEventListener("click", function () {
+      data.mode = m; save(); syncMode();
+      if (phase === "ended") startSession(); else nextCard();
+    });
+  });
+  function syncMode() {
+    ["progressif", "razor"].forEach(function (m) {
+      el("m-" + m).setAttribute("aria-pressed", String(data.mode === m));
+    });
+    el("modeNote").textContent = MODE_NOTES[data.mode];
+  }
+  el("confusion").addEventListener("change", function (ev) {
+    data.confusion = ev.target.checked; save();
+  });
+
+  /* ================= stats ================= */
+  function statsVisible() { return !el("p-stats").hidden; }
+
+  function renderStats() {
+    var all = data.attempts, ses = sessionAttempts();
+    var allOk = all.filter(function (a) { return a.ok; });
+    var sesOk = ses.filter(function (a) { return a.ok; });
+
+    // meilleure série
+    var best = 0, cur = 0;
+    all.forEach(function (a) { cur = a.ok ? cur + 1 : 0; if (cur > best) best = cur; });
+    var run = 0;
+    for (var i = all.length - 1; i >= 0 && all[i].ok; i--) run++;
+
+    var medAll = median(allOk.map(function (a) { return a.rt; }));
+    var medSes = median(sesOk.map(function (a) { return a.rt; }));
+
+    el("tiles").innerHTML = [
+      tile("Justesse · séance", ses.length ? pct(sesOk.length / ses.length) : "—",
+           ses.length ? sesOk.length + " / " + ses.length + (ses.length > 1 ? " cartes" : " carte") : "aucune carte"),
+      tile("Temps médian · séance", medSes ? fmtRt(medSes) : "—",
+           medSes ? (medSes <= TARGET_RT ? "sous l'objectif de 2 s" : "au-dessus de 2 s") : "objectif 2 s"),
+      tile("Justesse · total", all.length ? pct(allOk.length / all.length) : "—",
+           all.length + (all.length > 1 ? " cartes au total" : " carte au total")),
+      tile("Série en cours", String(run), "record : " + best)
+    ].join("");
+
+    renderChart();
+    renderBands();
+
+    var errs = all.filter(function (a) { return !a.ok; });
+    var invs = errs.filter(function (a) { return TURTLE(a.e, a.n) === !!a.a; });
+    el("invText").innerHTML = !errs.length
+      ? "Aucune erreur enregistrée pour l'instant."
+      : invs.length + " de tes " + errs.length + " erreurs (" + pct(invs.length / errs.length) +
+        ") auraient été justes avec les deux scores échangés. " +
+        (invs.length / errs.length > 0.35
+          ? "C'est la lecture des camps qui coince, pas le calcul : force-toi à dire « nous » à voix haute avant de doubler."
+          : "Le calcul est en cause plus souvent que l'inversion.");
+  }
+
+  function tile(k, v, s) {
+    return '<div class="tile"><span class="k">' + k + '</span><span class="v us-t">' + v +
+           '</span><span class="s">' + s + '</span></div>';
+  }
+
+  function sessionSeries() {
+    var by = {};
+    data.attempts.forEach(function (a) {
+      if (!a.ok) return;
+      (by[a.s] = by[a.s] || { rts: [], t: a.t, n: 0 }).rts.push(a.rt);
+    });
+    data.attempts.forEach(function (a) { if (by[a.s]) by[a.s].n++; });
+    return Object.keys(by)
+      .map(function (k) { return { s: +k, med: median(by[k].rts), n: by[k].n, t: by[k].t }; })
+      .filter(function (d) { return d.n >= 5; })
+      .sort(function (a, b) { return a.s - b.s; })
+      .slice(-24);
+  }
+
+  function renderChart() {
+    var box = el("chartBox"), pts = sessionSeries();
+    if (pts.length < 2) {
+      box.innerHTML = '<p class="chart-empty">La courbe apparaît à partir de deux séances d\'au moins 5 cartes.<br>' +
+                      (pts.length ? "Une séance enregistrée." : "Aucune séance complète pour l'instant.") + '</p>';
+      return;
+    }
+
+    var W = 600, H = 206, ml = 46, mr = 14, mt = 14, mb = 32;
+    var iw = W - ml - mr, ih = H - mt - mb;
+    var vals = pts.map(function (p) { return p.med; }).concat([TARGET_RT]);
+    var vmax = Math.max.apply(null, vals) * 1.12, vmin = 0;
+    var x = function (i) { return ml + (pts.length === 1 ? iw / 2 : iw * i / (pts.length - 1)); };
+    var y = function (v) { return mt + ih - ih * (v - vmin) / (vmax - vmin); };
+
+    var ticks = [0, vmax / 3, (2 * vmax) / 3].map(function (v) { return Math.round(v / 500) * 500; })
+      .filter(function (v, i, arr) { return arr.indexOf(v) === i; });
+    ticks.push(Math.round(vmax / 500) * 500);
+
+    var grid = ticks.map(function (v) {
+      return '<line x1="' + ml + '" x2="' + (W - mr) + '" y1="' + y(v).toFixed(1) + '" y2="' + y(v).toFixed(1) +
+             '" stroke="var(--line-soft)" stroke-width="1"/>' +
+             '<text x="' + (ml - 8) + '" y="' + (y(v) + 4).toFixed(1) + '" text-anchor="end" font-size="10" ' +
+             'font-family="var(--mono)" fill="var(--ink-3)">' + (v / 1000).toFixed(1).replace(".", ",") + 's</text>';
+    }).join("");
+
+    var line = pts.map(function (p, i) { return (i ? "L" : "M") + x(i).toFixed(1) + " " + y(p.med).toFixed(1); }).join(" ");
+    var area = line + " L" + x(pts.length - 1).toFixed(1) + " " + (mt + ih) + " L" + x(0).toFixed(1) + " " + (mt + ih) + " Z";
+    var last = pts[pts.length - 1];
+
+    var dfmt = function (t) {
+      return new Date(t).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" });
+    };
+    var xlabels =
+      '<text x="' + ml + '" y="' + (H - 6) + '" font-size="10" font-family="var(--mono)" ' +
+      'fill="var(--ink-3)">' + dfmt(pts[0].t) + '</text>' +
+      '<text x="' + (W - mr) + '" y="' + (H - 6) + '" text-anchor="end" font-size="10" ' +
+      'font-family="var(--mono)" fill="var(--ink-3)">' + dfmt(last.t) + '</text>';
+
+    var dots = pts.map(function (p, i) {
+      return '<circle cx="' + x(i).toFixed(1) + '" cy="' + y(p.med).toFixed(1) + '" r="' +
+             (i === pts.length - 1 ? 5 : 3.2) + '" fill="' + (i === pts.length - 1 ? "var(--us)" : "var(--panel)") +
+             '" stroke="var(--us)" stroke-width="2"/>';
+    }).join("");
+
+    var hits = pts.map(function (p, i) {
+      return '<rect class="hit" data-i="' + i + '" x="' + (x(i) - iw / (2 * (pts.length - 1)) - 2).toFixed(1) +
+             '" y="' + mt + '" width="' + (iw / (pts.length - 1) + 4).toFixed(1) + '" height="' + ih +
+             '" fill="transparent"/>';
+    }).join("");
+
+    box.innerHTML =
+      '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" ' +
+      'aria-label="Temps de réponse médian par séance, de ' + fmtRt(pts[0].med) + ' à ' + fmtRt(last.med) + '">' +
+      grid +
+      '<line x1="' + ml + '" x2="' + (W - mr) + '" y1="' + y(TARGET_RT).toFixed(1) + '" y2="' + y(TARGET_RT).toFixed(1) +
+      '" stroke="var(--them)" stroke-width="1.5" stroke-dasharray="4 4" opacity="0.75"/>' +
+      '<text x="' + (ml + 6) + '" y="' + (y(TARGET_RT) - 6).toFixed(1) + '" text-anchor="start" font-size="10" ' +
+      'font-family="var(--mono)" fill="var(--them)">objectif 2,0 s</text>' +
+      '<defs><linearGradient id="fade" x1="0" y1="0" x2="0" y2="1">' +
+      '<stop offset="0%" stop-color="var(--us)" stop-opacity="0.22"/>' +
+      '<stop offset="100%" stop-color="var(--us)" stop-opacity="0"/></linearGradient></defs>' +
+      '<path d="' + area + '" fill="url(#fade)"/>' +
+      '<path d="' + line + '" fill="none" stroke="var(--us)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>' +
+      dots + xlabels +
+      '<line id="cross" x1="0" x2="0" y1="' + mt + '" y2="' + (mt + ih) + '" stroke="var(--ink-3)" stroke-width="1" opacity="0"/>' +
+      hits +
+      '</svg><div class="tip" id="tip"></div>';
+
+    var svg = box.querySelector("svg"), tip = el("tip"), cross = el("cross");
+    svg.addEventListener("pointermove", function (ev) {
+      var t = ev.target;
+      if (!t.classList || !t.classList.contains("hit")) return;
+      var i = +t.getAttribute("data-i"), p = pts[i];
+      var r = svg.getBoundingClientRect(), k = r.width / W;
+      cross.setAttribute("x1", x(i)); cross.setAttribute("x2", x(i)); cross.setAttribute("opacity", "0.5");
+      tip.style.opacity = "1";
+      tip.style.left = (x(i) * k) + "px";
+      tip.style.top = (y(p.med) * k + 16) + "px";
+      tip.textContent = new Date(p.t).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" }) +
+                        " · " + fmtRt(p.med) + " · " + p.n + (p.n > 1 ? " cartes" : " carte");
+    });
+    svg.addEventListener("pointerleave", function () {
+      tip.style.opacity = "0"; cross.setAttribute("opacity", "0");
+    });
+  }
+
+  function renderBands() {
+    var tb = el("bandTable").querySelector("tbody");
+    tb.innerHTML = BANDS.map(function (b, i) {
+      var s = data.attempts.filter(function (a) { return bandOf(a.m) === i; });
+      if (!s.length) {
+        return '<tr><td>' + b.label + ' <span class="dim">· ' + b.name + '</span></td>' +
+               '<td class="dim">0</td><td class="dim">—</td><td class="dim">—</td>' +
+               '<td><span class="chip none">jamais vu</span></td></tr>';
+      }
+      var ok = s.filter(function (a) { return a.ok; });
+      var acc = ok.length / s.length, med = median(ok.map(function (a) { return a.rt; }));
+      var cls, txt;
+      if (s.length < 8) { cls = "none"; txt = "à creuser"; }
+      else if (acc < 0.8) { cls = "bad"; txt = "fragile"; }
+      else if (med && med > TARGET_RT) { cls = "warn"; txt = "trop lent"; }
+      else { cls = "ok"; txt = "solide"; }
+      return '<tr><td>' + b.label + ' <span class="dim">· ' + b.name + '</span></td>' +
+             '<td>' + s.length + '</td><td>' + pct(acc) + '</td>' +
+             '<td>' + (med ? fmtRt(med) : "—") + '</td>' +
+             '<td><span class="chip ' + cls + '">' + txt + '</span></td></tr>';
+    }).join("");
+  }
+
+  el("reset").addEventListener("click", function () {
+    if (!confirm("Effacer toutes les cartes enregistrées ? C'est définitif.")) return;
+    data.attempts = [];
+    save();
+    renderRail(); renderStats();
+  });
+
+  /* ================= table de référence ================= */
+  el("refGrid").innerHTML = [[51, 62], [63, 74], [75, 86], [87, 99]].map(function (r) {
+    var rows = "";
+    for (var n = r[0]; n <= r[1]; n++) {
+      rows += '<li class="lim"><span>(' + n + ')</span><b>≤ ' + (LIMIT(n) - 1) + '</b></li>';
+    }
+    return '<div class="col"><h3>' + r[0] + ' – ' + r[1] + '</h3><ul>' + rows + '</ul></div>';
+  }).join("");
+
+  /* ================= onglets ================= */
+  var TABS = [["tab-train", "p-train"], ["tab-stats", "p-stats"], ["tab-rule", "p-rule"]];
+  TABS.forEach(function (pair) {
+    el(pair[0]).addEventListener("click", function () {
+      TABS.forEach(function (q) {
+        var on = q[0] === pair[0];
+        el(q[0]).setAttribute("aria-selected", String(on));
+        el(q[1]).hidden = !on;
+      });
+      if (pair[1] === "p-stats") renderStats();
+      if (pair[1] === "p-train" && phase === "idle") nextCard();
+    });
+  });
+
+  /* ================= démarrage ================= */
+  el("confusion").checked = data.confusion;
+  syncMode();
+  renderRail();
+  nextCard();
+})();
+</script>
+</body>
+</html>
