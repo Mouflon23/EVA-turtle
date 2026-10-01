@@ -135,15 +135,7 @@
     align-items: center;
     gap: 12px;
   }
-  .side { display: flex; flex-direction: column; align-items: center; gap: 6px; }
-  .tag {
-    font-family: var(--mono);
-    font-size: 11px;
-    letter-spacing: 0.22em;
-    font-weight: 700;
-  }
-  .side.us .tag { color: var(--us); }
-  .side.them .tag { color: var(--them); }
+  .side { display: flex; flex-direction: column; align-items: center; gap: 9px; }
   .num {
     font-family: var(--mono);
     font-size: clamp(42px, 13vw, 72px);
@@ -151,13 +143,26 @@
     line-height: 1;
     letter-spacing: -0.02em;
     font-variant-numeric: tabular-nums;
+    color: var(--team, var(--line));
   }
-  .side.us .num { color: var(--us); }
-  .side.them .num { color: var(--them); }
+  /* la bande de couleur est la seule etiquette : en match, rien d'autre ne dit qui est qui */
+  .bar { width: 70%; max-width: 116px; height: 5px; border-radius: 2px; background: var(--team, var(--line)); }
   .sep { font-family: var(--mono); font-size: 28px; color: var(--ink-3); }
 
   .stage.blank .num { color: var(--line); }
-  .stage.blank .tag { color: var(--ink-3); }
+  .stage.blank .bar { background: var(--line); }
+
+  /* l'annonce du camp arrive avant les scores : la couleur est connue, le score est a trouver */
+  .youare {
+    margin: 0; text-align: center; min-height: 20px;
+    font-family: var(--mono); font-size: 12px; letter-spacing: 0.16em;
+    text-transform: uppercase; color: var(--ink-3);
+  }
+  .youare b { color: var(--team, var(--ink-3)); font-weight: 700; letter-spacing: 0.2em; }
+  .youare .dot {
+    display: inline-block; width: 9px; height: 9px; border-radius: 50%;
+    background: var(--team, var(--line)); margin-right: 7px; position: relative; top: 1px;
+  }
 
   .stage[hidden], .recap[hidden] { display: none; }
   .recap {
@@ -269,8 +274,7 @@
     padding-bottom: 2px;
   }
   .verdict.idle .calc { white-space: normal; }
-  .calc .us-t { color: var(--us); }
-  .calc .them-t { color: var(--them); }
+  .calc b.t { font-weight: 700; }
   .calc-alt { font-family: var(--mono); font-size: 12px; color: var(--ink-3); white-space: nowrap; overflow-x: auto; }
   .flag {
     font-size: 12.5px;
@@ -420,16 +424,11 @@
   <div class="panel" id="p-train" role="tabpanel" aria-labelledby="tab-train">
     <div class="frame">
       <div class="stage blank" id="stage">
+        <p class="youare" id="youAre">&nbsp;</p>
         <div class="duel" id="duel">
-          <div class="side us">
-            <span class="tag">NOUS</span>
-            <span class="num">··</span>
-          </div>
+          <div class="side"><span class="num">··</span><span class="bar"></span></div>
           <span class="sep">—</span>
-          <div class="side them">
-            <span class="tag">EUX</span>
-            <span class="num">··</span>
-          </div>
+          <div class="side"><span class="num">··</span><span class="bar"></span></div>
         </div>
         <p class="prompt" id="prompt">Turtle possible ?</p>
       </div>
@@ -450,7 +449,7 @@
         <span class="label" id="vLabel">En attente</span>
         <span class="rt" id="vRt"></span>
       </div>
-      <div class="calc" id="vCalc">Réponds avant que le score ne change quoi que ce soit.</div>
+      <div class="calc" id="vCalc">Ta couleur s'affiche d'abord, les deux scores ensuite. Trouve le tien, double-le, enlève cent.</div>
       <div class="calc-alt" id="vAlt"></div>
       <div class="flag" id="vFlag" hidden></div>
     </div>
@@ -463,7 +462,7 @@
       <button class="stop" id="stop">Terminer la séance · Échap</button>
     </div>
     <p class="note" id="modeNote"></p>
-    <p class="note">Les deux camps changent de côté au hasard à chaque carte. Fie-toi à l'étiquette et à la couleur, jamais à la position.</p>
+    <p class="note">Ta couleur t'est annoncée avant chaque carte, puis les deux camps tombent au hasard d'un côté ou de l'autre. Rien n'indique ton score à part la couleur : ni la position, ni l'ordre.</p>
   </div>
 
   <!-- ============ STATS ============ -->
@@ -501,10 +500,10 @@
   <div class="panel" id="p-rule" role="tabpanel" aria-labelledby="tab-rule" hidden>
     <div class="rule-card">
       <h2>La règle, version match</h2>
-      <div class="formula"><span style="color:var(--us)">nous</span> × 2 − 100 &gt; <span style="color:var(--them)">eux</span></div>
+      <div class="formula"><span style="color:var(--ink)">ton score</span> × 2 − 100 &gt; <span style="color:var(--ink-2)">le leur</span></div>
       <ol class="steps">
-        <li><span><b>Nous d'abord.</b> Toujours. C'est notre score qu'on double, donc autant le lire en premier — c'est ça qui verrouille l'inversion. L'entraîneur intervertit les deux camps au hasard à chaque carte : seules l'étiquette et la couleur disent qui est qui.</span></li>
-        <li><span><b>Enlève cinquante, puis double.</b> 87 → 37 → <b style="color:var(--them)">74</b>. C'est le score plafond qu'ils ne doivent pas atteindre. Strictement identique à « double, enlève cent », mais tu ne dépasses jamais 50 avant de doubler — c'est ce qui rend les unités tenables.</span></li>
+        <li><span><b>Ta couleur d'abord.</b> Toujours. C'est ton score qu'on double, donc autant le trouver avant de calculer quoi que ce soit — c'est ça qui verrouille l'inversion. L'entraîneur t'annonce ta couleur, puis place les deux camps au hasard : seule la couleur dit lequel est le tien.</span></li>
+        <li><span><b>Enlève cinquante, puis double.</b> 87 → 37 → <b>74</b>. C'est le score plafond qu'ils ne doivent pas atteindre. Strictement identique à « double, enlève cent », mais tu ne dépasses jamais 50 avant de doubler — c'est ce qui rend les unités tenables.</span></li>
         <li><span><b>Compare.</b> Strictement en dessous → turtle. À égalité pile, c'est non.</span></li>
       </ol>
     </div>
@@ -644,15 +643,24 @@
       btnYes = el("btnYes"), btnNo = el("btnNo"),
       verdict = el("verdict"), vLabel = el("vLabel"), vRt = el("vRt"),
       vCalc = el("vCalc"), vAlt = el("vAlt"), vFlag = el("vFlag"),
-      recap = el("recap"), recapStats = el("recapStats"), stopBtn = el("stop");
+      recap = el("recap"), recapStats = el("recapStats"), stopBtn = el("stop"),
+      youAre = el("youAre");
 
   var card = null, phase = "idle", t0 = 0, armed = false, timer = null, hidden = false;
 
   var SEP = '<span class="sep">—</span>';
-  function SIDE(cls, tag, val) {
-    return '<div class="side ' + cls + '"><span class="tag">' + tag +
-           '</span><span class="num">' + val + '</span></div>';
+
+  // les deux camps du jeu : le bleu et l'orange de l'interface
+  var TEAMS = [
+    { name: "BLEU",   c: "var(--us)" },
+    { name: "ORANGE", c: "var(--them)" }
+  ];
+
+  function SIDE(team, val) {
+    return '<div class="side" style="--team:' + team.c + '">' +
+           '<span class="num">' + val + '</span><span class="bar"></span></div>';
   }
+  var SIDE_BLANK = '<div class="side"><span class="num">··</span><span class="bar"></span></div>';
 
   function clearTimer() { if (timer) { clearTimeout(timer); timer = null; } }
 
@@ -662,8 +670,15 @@
     phase = "blank";
     frame.classList.remove("tappable");
     card = genCard();
+    // le camp est annonce avant les scores, comme en match ; les bandes de couleur,
+    // elles, n'apparaissent qu'avec les chiffres, sinon le cote serait repere d'avance
+    var side = Math.random() < 0.5 ? 0 : 1;   // tirage franc : jamais d'alternance a deviner
+    card.mine = TEAMS[side];
+    card.theirs = TEAMS[1 - side];
     stage.classList.add("blank");
-    duel.innerHTML = SIDE("us", "NOUS", "··") + SEP + SIDE("them", "EUX", "··");
+    youAre.style.setProperty("--team", card.mine.c);
+    youAre.innerHTML = 'Vous êtes <b><span class="dot"></span>' + card.mine.name + '</b>';
+    duel.innerHTML = SIDE_BLANK + SEP + SIDE_BLANK;
     prompt.textContent = "Prêt…";
     btnYes.disabled = btnNo.disabled = true;
     // délai variable : empêche de répondre au rythme plutôt qu'au score
@@ -677,9 +692,9 @@
     stage.classList.remove("blank");
     if (!verdict.classList.contains("idle")) verdict.classList.add("past"); // la carte précédente ne doit plus capter l'oeil
 
-    var us = SIDE("us", "NOUS", card.n), them = SIDE("them", "EUX", card.e);
+    var mine = SIDE(card.mine, card.n), theirs = SIDE(card.theirs, card.e);
     var flip = Math.random() < 0.5;   // les camps changent de côté à chaque carte
-    duel.innerHTML = flip ? them + SEP + us : us + SEP + them;
+    duel.innerHTML = flip ? theirs + SEP + mine : mine + SEP + theirs;
 
     prompt.textContent = "Turtle possible ?";
     btnYes.disabled = btnNo.disabled = false;
@@ -702,7 +717,7 @@
     phase = "reveal";
     btnYes.disabled = btnNo.disabled = true;
 
-    var n = card.n, e = card.e;
+    var n = card.n, e = card.e, mine = card.mine, theirs = card.theirs;
     var truth = TURTLE(n, e), m = MARGIN(n, e), ok = said === truth;
 
     // diagnostic d'inversion : la réponse aurait-elle été juste avec les scores échangés ?
@@ -719,18 +734,19 @@
     vRt.className = "rt" + (rt > TARGET_RT ? " slow" : "");
 
     vCalc.innerHTML =
-      '2 × <span class="us-t">' + n + '</span> − 100 = <b>' + LIMIT(n) + '</b> ' +
-      (truth ? "&gt;" : (m === 0 ? "=" : "&lt;")) + ' <span class="them-t">' + e + '</span>' +
+      '2 × <b class="t" style="color:' + mine.c + '">' + n + '</b> − 100 = <b>' + LIMIT(n) + '</b> ' +
+      (truth ? "&gt;" : (m === 0 ? "=" : "&lt;")) + ' <b class="t" style="color:' + theirs.c + '">' + e + '</b>' +
       '<span style="color:var(--ink-3)">   ·   marge ' + (m > 0 ? "+" : "") + m + '</span>';
     vAlt.textContent = "(" + n + " − 50) × 2 = " + LIMIT(n) +
                        "   ·   restes " + (100 - n) + " / " + (100 - e);
 
     if (inv) {
       vFlag.hidden = false;
-      vFlag.innerHTML = "Inversion probable : ta réponse aurait été juste avec les scores échangés. Reprends par <b>nous</b>.";
+      vFlag.innerHTML = "Inversion : tu as doublé le score " + theirs.name + " au lieu du tien. Tu étais <b>" +
+                        mine.name + "</b> — repère ta couleur avant de calculer.";
     } else if (!ok && n <= 50) {
       vFlag.hidden = false;
-      vFlag.innerHTML = "Sous 51 pour nous, la turtle est <b>toujours</b> impossible — aucun calcul à faire.";
+      vFlag.innerHTML = "Sous 51 pour ton camp, la turtle est <b>toujours</b> impossible — aucun calcul à faire.";
     } else {
       vFlag.hidden = true;
       vFlag.textContent = "";
@@ -744,7 +760,7 @@
     else prompt.textContent = "Toucher les scores ou Espace";
   }
 
-  var INTRO = "Réponds avant que le score ne change quoi que ce soit.";
+  var INTRO = "Ta couleur s'affiche d'abord, les deux scores ensuite. Trouve le tien, double-le, enlève cent.";
 
   // Arrêt : le minuteur et le chrono de la carte affichée sont coupés avant
   // tout enregistrement, donc cette carte ne compte ni en justesse ni en temps.
@@ -757,6 +773,7 @@
     frame.classList.remove("tappable");
     stage.hidden = true;
     recap.hidden = false;
+    youAre.innerHTML = "&nbsp;";
     if (!verdict.classList.contains("idle")) verdict.classList.add("past");
 
     var s = sessionAttempts();
@@ -893,7 +910,7 @@
     var diag = !invs.length
       ? ""
       : invs.length / errs.length > 0.35
-        ? " C'est la lecture des camps qui coince, pas le calcul : force-toi à dire « nous » à voix haute avant de doubler."
+        ? " C'est la lecture des camps qui coince, pas le calcul : dis ta couleur à voix haute pendant l'annonce, et ne double que ce score-là."
         : " Le calcul est en cause plus souvent que l'inversion.";
     el("invText").textContent = !errs.length
       ? "Aucune erreur enregistrée pour l'instant."
