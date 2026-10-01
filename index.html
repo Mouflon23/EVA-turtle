@@ -297,15 +297,6 @@
   .seg button:last-child { border-right: 0; }
   .seg button[aria-pressed="true"] { background: var(--panel-2); color: var(--ink); }
   .seg button:focus-visible { outline: 2px solid var(--us); outline-offset: -2px; }
-  .toggle {
-    display: inline-flex; align-items: center; gap: 7px;
-    font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em;
-    text-transform: uppercase; color: var(--ink-3); cursor: pointer;
-    border: 1px solid var(--line-soft); border-radius: var(--r); padding: 8px 11px;
-  }
-  .toggle input { accent-color: var(--us); margin: 0; }
-  .toggle:has(input:checked) { color: var(--ink); background: var(--panel-2); }
-
   /* ---------- stats ---------- */
   .tiles { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
   .tile { background: var(--panel); border: 1px solid var(--line-soft); padding: 14px 16px; display: flex; flex-direction: column; gap: 3px; }
@@ -461,13 +452,10 @@
         <button id="m-progressif" aria-pressed="true">Progressif</button>
         <button id="m-razor" aria-pressed="false">Lame de rasoir</button>
       </div>
-      <label class="toggle">
-        <input type="checkbox" id="confusion">
-        Côtés inversés
-      </label>
       <button class="stop" id="stop">Terminer la séance</button>
     </div>
     <p class="note" id="modeNote"></p>
+    <p class="note">Les deux camps changent de côté au hasard à chaque carte. Fie-toi à l'étiquette et à la couleur, jamais à la position.</p>
   </div>
 
   <!-- ============ STATS ============ -->
@@ -507,7 +495,7 @@
       <h2>La règle, version match</h2>
       <div class="formula"><span style="color:var(--us)">nous</span> × 2 − 100 &gt; <span style="color:var(--them)">eux</span></div>
       <ol class="steps">
-        <li><span><b>Nous d'abord.</b> Toujours. C'est notre score qu'on double, donc autant le lire en premier — c'est ça qui verrouille l'inversion.</span></li>
+        <li><span><b>Nous d'abord.</b> Toujours. C'est notre score qu'on double, donc autant le lire en premier — c'est ça qui verrouille l'inversion. L'entraîneur intervertit les deux camps au hasard à chaque carte : seules l'étiquette et la couleur disent qui est qui.</span></li>
         <li><span><b>Enlève cinquante, puis double.</b> 87 → 37 → <b style="color:var(--them)">74</b>. C'est le score plafond qu'ils ne doivent pas atteindre. Strictement identique à « double, enlève cent », mais tu ne dépasses jamais 50 avant de doubler — c'est ce qui rend les unités tenables.</span></li>
         <li><span><b>Compare.</b> Strictement en dessous → turtle. À égalité pile, c'est non.</span></li>
       </ol>
@@ -559,7 +547,7 @@
   var MIN_RT = 180, TARGET_RT = 2000, KEY = "eva-turtle-v1";
 
   /* ================= stockage ================= */
-  var data = { v: 1, attempts: [], mode: "progressif", confusion: false };
+  var data = { v: 1, attempts: [], mode: "progressif" };
   try {
     var raw = localStorage.getItem(KEY);
     if (raw) {
@@ -567,8 +555,7 @@
       if (p && Array.isArray(p.attempts)) data = {
         v: 1,
         attempts: p.attempts.slice(-3000),
-        mode: p.mode === "razor" ? p.mode : "progressif",
-        confusion: !!p.confusion
+        mode: p.mode === "razor" ? p.mode : "progressif"
       };
     }
   } catch (err) { /* stockage indisponible : on tourne en mémoire */ }
@@ -679,7 +666,7 @@
     var us = '<div class="side us"><span class="tag">NOUS</span><span class="num">(' + card.n + ')</span></div>';
     var them = '<div class="side them"><span class="tag">EUX</span><span class="num">' + card.e + '</span></div>';
     var sep = '<span class="sep">—</span>';
-    var flip = data.confusion && Math.random() < 0.5;
+    var flip = Math.random() < 0.5;   // les camps changent de côté à chaque carte
     duel.innerHTML = flip ? them + sep + us : us + sep + them;
 
     prompt.textContent = "Turtle possible ?";
@@ -852,10 +839,6 @@
     });
     el("modeNote").textContent = MODE_NOTES[data.mode];
   }
-  el("confusion").addEventListener("change", function (ev) {
-    data.confusion = ev.target.checked; save();
-  });
-
   /* ================= stats ================= */
   function statsVisible() { return !el("p-stats").hidden; }
 
@@ -1057,7 +1040,6 @@
   });
 
   /* ================= démarrage ================= */
-  el("confusion").checked = data.confusion;
   syncMode();
   renderRail();
   nextCard();
