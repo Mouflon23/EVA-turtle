@@ -871,13 +871,21 @@
 
     var errs = all.filter(function (a) { return !a.ok; });
     var invs = errs.filter(function (a) { return TURTLE(a.e, a.n) === !!a.a; });
-    el("invText").innerHTML = !errs.length
+    var diag = !invs.length
+      ? ""
+      : invs.length / errs.length > 0.35
+        ? " C'est la lecture des camps qui coince, pas le calcul : force-toi à dire « nous » à voix haute avant de doubler."
+        : " Le calcul est en cause plus souvent que l'inversion.";
+    el("invText").textContent = !errs.length
       ? "Aucune erreur enregistrée pour l'instant."
-      : invs.length + " de tes " + errs.length + " erreurs (" + pct(invs.length / errs.length) +
-        ") auraient été justes avec les deux scores échangés. " +
-        (invs.length / errs.length > 0.35
-          ? "C'est la lecture des camps qui coince, pas le calcul : force-toi à dire « nous » à voix haute avant de doubler."
-          : "Le calcul est en cause plus souvent que l'inversion.");
+      : errs.length === 1
+        ? (invs.length
+            ? "Ton unique erreur aurait été juste avec les deux scores échangés : c'est une inversion, pas une faute de calcul."
+            : "Ton unique erreur n'était pas une inversion : les deux scores échangés, elle serait restée fausse.")
+        : invs.length + (invs.length > 1 ? " de tes " : " de tes ") + errs.length + " erreurs (" +
+          pct(invs.length / errs.length) + ") " +
+          (invs.length > 1 ? "auraient été justes" : "aurait été juste") +
+          " avec les deux scores échangés." + diag;
   }
 
   function tile(k, v, s) {
